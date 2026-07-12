@@ -11,7 +11,6 @@ const State = {
   chatHistory:   [],
   waterCount:    parseInt(localStorage.getItem("nutribot_water") || "0"),
   darkMode:      localStorage.getItem("nutribot_dark") === "true",
-  familyMembers: JSON.parse(localStorage.getItem("nutribot_family") || "[]"),
   todayLog:      [],
   targets:       null,
 };
@@ -24,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTodayLog();
   renderWaterGlasses();
   setTodayDate();
-  renderFamilyMembers();
 
   // Pre-fill time in tracker
   const timeInput = document.getElementById("track-time");
@@ -167,12 +165,13 @@ function renderDailyTargets(p) {
   const el = document.getElementById("daily-targets-panel");
   if (!el) return;
   if (!p?.calories) { el.innerHTML = `<p class="text-muted text-center small">Set your profile to see targets</p>`; return; }
-  const macros = calcMacros(p.calories, p.split || "balanced");
+  const m = calcMacros(p.calories, p.split || "balanced");
   el.innerHTML = `
     <div class="target-item"><span>Calories</span><span class="target-val text-success">${p.calories} kcal</span></div>
-    <div class="target-item"><span>Protein</span><span class="target-val text-primary">${macros.protein_g}g</span></div>
-    <div class="target-item"><span>Carbs</span><span class="target-val text-warning">${macros.carbs_g}g</span></div>
-    <div class="target-item"><span>Fat</span><span class="target-val text-danger">${macros.fat_g}g</span></div>
+    <div class="target-item"><span>Protein</span><span class="target-val text-primary">${m.protein_g}g <small class="text-muted">(${m.protein_pct}%)</small></span></div>
+    <div class="target-item"><span>Carbs</span><span class="target-val text-warning">${m.carbs_g}g <small class="text-muted">(${m.carbs_pct}%)</small></span></div>
+    <div class="target-item"><span>Fat</span><span class="target-val text-danger">${m.fat_g}g <small class="text-muted">(${m.fat_pct}%)</small></span></div>
+    <div class="target-item"><span>Fiber</span><span class="target-val text-info">${m.fiber_g}g</span></div>
   `;
 }
 
@@ -300,7 +299,7 @@ async function loadDailyTip() {
   try {
     const res  = await fetch("/api/nutrition-tip");
     const data = await res.json();
-    el.innerHTML = `<div class="d-flex gap-2"><span>💡</span><span>${data.tip}</span></div>`;
+    el.innerHTML = `<div class="d-flex gap-2"><span>💡</span><span>${formatPlanText(data.tip)}</span></div>`;
   } catch {
     el.innerHTML = `<span>💡 Stay hydrated! Aim for 8 glasses of water daily and include seasonal fruits in your diet.</span>`;
   }
@@ -417,17 +416,13 @@ async function clearTodayLog() {
 }
 
 function updateProgressBars(totals) {
-  const t = State.targets || {};
-  const goals = {
-    cal:  State.profile?.calories || t.calories || 2000,
-    pro:  t.protein_g || 60,
-    carb: t.carbs_g   || 250,
-    fat:  t.fat_g     || 55,
-  };
-  setBar("prog-cal",  totals.calories || 0, goals.cal,  "prog-cal-text",  `${totals.calories || 0} / ${goals.cal} kcal`);
-  setBar("prog-pro",  totals.protein  || 0, goals.pro,  "prog-pro-text",  `${totals.protein  || 0} / ${goals.pro} g`);
-  setBar("prog-carb", totals.carbs    || 0, goals.carb, "prog-carb-text", `${totals.carbs    || 0} / ${goals.carb} g`);
-  setBar("prog-fat",  totals.fat      || 0, goals.fat,  "prog-fat-text",  `${totals.fat      || 0} / ${goals.fat} g`);
+  const p = State.profile;
+  const t = calcMacros(p?.calories || 2000, p?.split || "balanced");
+
+  setBar("prog-cal",  totals.calories || 0, t.calories,  "prog-cal-text",  `${totals.calories || 0} / ${t.calories} kcal`);
+  setBar("prog-pro",  totals.protein  || 0, t.protein_g, "prog-pro-text",  `${totals.protein  || 0} / ${t.protein_g} g`);
+  setBar("prog-carb", totals.carbs    || 0, t.carbs_g,   "prog-carb-text", `${totals.carbs    || 0} / ${t.carbs_g} g`);
+  setBar("prog-fat",  totals.fat      || 0, t.fat_g,     "prog-fat-text",  `${totals.fat      || 0} / ${t.fat_g} g`);
 }
 
 function setBar(barId, val, max, textId, text) {
@@ -467,23 +462,26 @@ async function aiAnalyzeForLog() {
       body: JSON.stringify({ meal: input }),
     });
     const data = await res.json();
-    if (data.analysis) {
-      resultEl.textContent = data.analysis;
-      resultEl.classList.remove("d-none");
+    if (data.error) { showToast(data.error, "danger"); return; }
 
-      // Try to parse numbers from the response
-      const cals    = extractNumber(data.analysis, /(\d{3,4})\s*(?:calories?|kcal)/i);
-      const protein = extractNumber(data.analysis, /protein[:\s]+(\d+(?:\.\d+)?)\s*g/i);
-      const carbs   = extractNumber(data.analysis, /carb(?:ohydrate)?s?[:\s]+(\d+(?:\.\d+)?)\s*g/i);
-      const fat     = extractNumber(data.analysis, /fat[:\s]+(\d+(?:\.\d+)?)\s*g/i);
+    resultEl.innerHTML = `
+      <div class="mb-1">${data.analysis}</div>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <span class="badge bg-success">🔥 ${data.calories} kcal</span>
+        <span class="badge bg-primary">Protein: ${data.protein}g</span>
+        <span class="badge bg-warning text-dark">Carbs: ${data.carbs}g</span>
+        <span class="badge bg-danger">Fat: ${data.fat}g</span>
+        <span class="badge bg-secondary">Fiber: ${data.fiber}g</span>
+      </div>`;
+    resultEl.classList.remove("d-none");
 
-      document.getElementById("ai-meal-name").value = input;
-      document.getElementById("ai-calories").value  = cals    || "";
-      document.getElementById("ai-protein").value   = protein || "";
-      document.getElementById("ai-carbs").value     = carbs   || "";
-      document.getElementById("ai-fat").value       = fat     || "";
-      logForm.classList.remove("d-none");
-    }
+    document.getElementById("ai-meal-name").value = data.meal;
+    document.getElementById("ai-calories").value  = data.calories;
+    document.getElementById("ai-protein").value   = data.protein;
+    document.getElementById("ai-carbs").value     = data.carbs;
+    document.getElementById("ai-fat").value       = data.fat;
+
+    logForm.classList.remove("d-none");
   } catch { showToast("Analysis failed", "danger"); }
   finally { toggleBtn("aiAnalyzeBtn", false); }
 }
@@ -523,28 +521,34 @@ async function refreshDashboard() {
 }
 
 function updateDashboardStats(totals) {
-  const p    = State.profile;
-  const t    = State.targets || {};
-  const goal = p?.calories || 2000;
+  const p = State.profile;
+  const t = calcMacros(p?.calories || 2000, p?.split || "balanced");
+  State.targets = t;
+
+  const goalCal  = t.calories;
+  const goalPro  = t.protein_g;
+  const goalCarb = t.carbs_g;
+  const goalFat  = t.fat_g;
 
   setText("dash-calories", totals?.calories || 0);
   setText("dash-protein",  `${totals?.protein || 0}g`);
   setText("dash-carbs",    `${totals?.carbs   || 0}g`);
   setText("dash-fat",      `${totals?.fat     || 0}g`);
 
-  setText("dash-calorie-goal", `Goal: ${goal} kcal`);
-  setText("dash-protein-goal", `Goal: ${t.protein_g || "—"}g`);
-  setText("dash-carbs-goal",   `Goal: ${t.carbs_g   || "—"}g`);
-  setText("dash-fat-goal",     `Goal: ${t.fat_g     || "—"}g`);
+  setText("dash-calorie-goal", `Goal: ${Math.round(goalCal)} kcal`);
+  setText("dash-protein-goal", `Goal: ${Math.round(goalPro)}g`);
+  setText("dash-carbs-goal",   `Goal: ${Math.round(goalCarb)}g`);
+  setText("dash-fat-goal",     `Goal: ${Math.round(goalFat)}g`);
 
-  setProgressBar("dash-calorie-bar", totals?.calories, goal);
-  setProgressBar("dash-protein-bar", totals?.protein,  t.protein_g || 60);
-  setProgressBar("dash-carbs-bar",   totals?.carbs,    t.carbs_g   || 250);
-  setProgressBar("dash-fat-bar",     totals?.fat,      t.fat_g     || 55);
+  setProgressBar("dash-calorie-bar", totals?.calories, goalCal);
+  setProgressBar("dash-protein-bar", totals?.protein,  goalPro);
+  setProgressBar("dash-carbs-bar",   totals?.carbs,    goalCarb);
+  setProgressBar("dash-fat-bar",     totals?.fat,      goalFat);
 
   // Update fiber
   setText("fiber-val", `${totals?.fiber || 0}g`);
-  setProgressBar("fiber-bar", totals?.fiber || 0, 28);
+  setText("fiber-goal", `Goal: ${t.fiber_g}g`);
+  setProgressBar("fiber-bar", totals?.fiber || 0, t.fiber_g);
 
   // Update donut chart
   updateDonutChart(totals?.calories || 0, totals?.protein || 0, totals?.carbs || 0, totals?.fat || 0);
@@ -757,104 +761,6 @@ function renderBMIResults(data) {
 }
 
 // ════════════════════════════════════════════════
-// FAMILY PLANNER
-// ════════════════════════════════════════════════
-function addFamilyMember() {
-  const id = Date.now();
-  State.familyMembers.push({ id, name: "", age: "", gender: "male", activity: "moderate", goal: "healthy living", diet: "vegetarian" });
-  saveFamilyMembers();
-  renderFamilyMembers();
-}
-
-function removeFamilyMember(id) {
-  State.familyMembers = State.familyMembers.filter(m => m.id !== id);
-  saveFamilyMembers();
-  renderFamilyMembers();
-}
-
-function saveFamilyMembers() {
-  localStorage.setItem("nutribot_family", JSON.stringify(State.familyMembers));
-}
-
-function renderFamilyMembers() {
-  const container = document.getElementById("familyMembersList");
-  if (!container) return;
-  if (State.familyMembers.length === 0) {
-    container.innerHTML = `<p class="text-muted text-center small py-2">No family members added yet</p>`;
-    return;
-  }
-  container.innerHTML = State.familyMembers.map((m, idx) => `
-    <div class="family-member-card" id="fm-${m.id}">
-      <div class="family-member-header">
-        <span class="family-member-title">👤 Member ${idx + 1}</span>
-        <button class="btn btn-sm btn-ghost" onclick="removeFamilyMember(${m.id})"><i class="bi bi-x text-danger"></i></button>
-      </div>
-      <div class="row g-2">
-        <div class="col-6"><input type="text" class="form-control form-control-sm" placeholder="Name" value="${escHtml(m.name)}" onchange="updateMember(${m.id},'name',this.value)"/></div>
-        <div class="col-6"><input type="number" class="form-control form-control-sm" placeholder="Age" value="${m.age}" min="1" max="120" onchange="updateMember(${m.id},'age',this.value)"/></div>
-        <div class="col-6">
-          <select class="form-select form-select-sm" onchange="updateMember(${m.id},'gender',this.value)">
-            <option value="male"   ${m.gender==="male"  ?"selected":""}>Male</option>
-            <option value="female" ${m.gender==="female"?"selected":""}>Female</option>
-          </select>
-        </div>
-        <div class="col-6">
-          <select class="form-select form-select-sm" onchange="updateMember(${m.id},'diet',this.value)">
-            <option value="vegetarian"    ${m.diet==="vegetarian"   ?"selected":""}>Vegetarian</option>
-            <option value="vegan"         ${m.diet==="vegan"        ?"selected":""}>Vegan</option>
-            <option value="non-vegetarian"${m.diet==="non-vegetarian"?"selected":""}>Non-Veg</option>
-          </select>
-        </div>
-        <div class="col-12">
-          <select class="form-select form-select-sm" onchange="updateMember(${m.id},'goal',this.value)">
-            <option value="healthy living" ${m.goal==="healthy living"?"selected":""}>Healthy Living</option>
-            <option value="lose weight"    ${m.goal==="lose weight"  ?"selected":""}>Lose Weight</option>
-            <option value="gain weight"    ${m.goal==="gain weight"  ?"selected":""}>Gain Weight</option>
-            <option value="build muscle"   ${m.goal==="build muscle" ?"selected":""}>Build Muscle</option>
-          </select>
-        </div>
-      </div>
-    </div>`).join("");
-}
-
-function updateMember(id, field, value) {
-  const m = State.familyMembers.find(x => x.id === id);
-  if (m) { m[field] = value; saveFamilyMembers(); }
-}
-
-async function generateFamilyPlan() {
-  if (State.familyMembers.length === 0) { showToast("Add at least one family member first", "danger"); return; }
-  toggleBtn("familyBtn", true);
-  const contentEl = document.getElementById("familyPlanContent");
-  contentEl.innerHTML = `<div class="d-flex align-items-center gap-3 p-4"><div class="spinner-border text-success"></div><span>Generating family nutrition plan with IBM Granite AI...</span></div>`;
-
-  try {
-    const res  = await fetch("/api/family-plan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        members: State.familyMembers,
-        cuisine: document.getElementById("family-cuisine").value,
-      }),
-    });
-    const data = await res.json();
-    if (data.plan) {
-      contentEl.innerHTML = `<div class="p-4 plan-text">${formatPlanText(data.plan)}</div>`;
-      const copyBtn = document.getElementById("copyFamilyBtn");
-      if (copyBtn) { copyBtn.style.display = ""; copyBtn._planText = data.plan; }
-    } else {
-      contentEl.innerHTML = `<div class="p-4 text-danger">Error: ${data.error}</div>`;
-    }
-  } catch { contentEl.innerHTML = `<div class="p-4 text-danger">Failed to generate. Check connection.</div>`; }
-  finally { toggleBtn("familyBtn", false); }
-}
-
-function copyFamilyPlan() {
-  const btn = document.getElementById("copyFamilyBtn");
-  if (btn?._planText) navigator.clipboard.writeText(btn._planText).then(() => showToast("Copied!", "success"));
-}
-
-// ════════════════════════════════════════════════
 // WATER TRACKER
 // ════════════════════════════════════════════════
 function renderWaterGlasses() {
@@ -897,20 +803,65 @@ function calcTDEE(bmr, activity) {
 }
 
 function calcMacros(calories, split = "balanced") {
-  const s = {
-    balanced:    { carbs:0.50, protein:0.25, fat:0.25 },
-    high_protein:{ carbs:0.30, protein:0.40, fat:0.30 },
-    low_carb:    { carbs:0.25, protein:0.35, fat:0.40 },
-    keto:        { carbs:0.05, protein:0.30, fat:0.65 },
-  }[split] || { carbs:0.50, protein:0.25, fat:0.25 };
-  return {
-    carbs_g:    Math.round((calories * s.carbs)   / 4),
-    protein_g:  Math.round((calories * s.protein) / 4),
-    fat_g:      Math.round((calories * s.fat)     / 9),
-    carbs_pct:  Math.round(s.carbs   * 100),
-    protein_pct:Math.round(s.protein * 100),
-    fat_pct:    Math.round(s.fat     * 100),
-  };
+  const p = State.profile || {};
+
+  // If profile isn't complete, fall back to percentage-based calculation
+  if (!p.weight || !p.goal) {
+    const key = (split || "balanced").toLowerCase().replace(/[-\s]/g, "_");
+
+    const s = {
+      balanced:     { carbs: 0.50, protein: 0.25, fat: 0.25 },
+      high_protein: { carbs: 0.35, protein: 0.35, fat: 0.30 },
+      low_carb:     { carbs: 0.25, protein: 0.35, fat: 0.40 },
+      keto:         { carbs: 0.05, protein: 0.30, fat: 0.65 },
+    }[key] || { carbs: 0.50, protein: 0.25, fat: 0.25 };
+
+    return {
+      calories,
+      carbs_g:     Math.round((calories * s.carbs) / 4),
+      protein_g:   Math.round((calories * s.protein) / 4),
+      fat_g:       Math.round((calories * s.fat) / 9),
+      fiber_g:     Math.round((calories / 1000) * 14 * 10) / 10,
+      carbs_pct:   Math.round(s.carbs * 100),
+      protein_pct: Math.round(s.protein * 100),
+      fat_pct:     Math.round(s.fat * 100),
+    };
+  }
+
+  // Evidence-based calculation using body weight
+  const weight = p.weight;
+
+  let proteinPerKg = 1.2;
+  switch ((p.goal || "").toLowerCase()) {
+    case "lose weight":                        proteinPerKg = 1.8; break;
+    case "gain muscle": case "build muscle":   proteinPerKg = 2.0; break;
+    case "gain weight":                        proteinPerKg = 1.5; break;
+    default:                                   proteinPerKg = 1.2;
+  }
+  const protein_g = Math.round(weight * proteinPerKg);
+
+  let fat_pct = 25;
+  switch ((split || "").toLowerCase().replace(/[-\s]/g, "_")) {
+    case "low_carb":    fat_pct = 40; break;
+    case "keto":        fat_pct = 65; break;
+    case "high_protein":fat_pct = 25; break;
+    default:            fat_pct = 25;
+  }
+  const fat_g = Math.round((calories * (fat_pct / 100)) / 9);
+
+  const proteinCalories = protein_g * 4;
+  const fatCalories     = fat_g * 9;
+  let carbCalories = calories - proteinCalories - fatCalories;
+  if (carbCalories < 0) carbCalories = 0;
+  const carbs_g = Math.round(carbCalories / 4);
+
+  // Fiber: 14g per 1000 kcal
+  const fiber_g = Math.round((calories / 1000) * 14 * 10) / 10;
+
+  const protein_pct = Math.round((proteinCalories / calories) * 100);
+  const carbs_pct   = Math.round((carbCalories    / calories) * 100);
+
+  return { calories, protein_g, carbs_g, fat_g, fiber_g, protein_pct, carbs_pct, fat_pct };
 }
 
 function setProgressBar(id, val, max) {
@@ -942,4 +893,3 @@ function showToast(msg, type = "success") {
 function capitalize(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ""; }
 function escHtml(str) { return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function formatTime12h(t) { const [h,m]=t.split(":"); const hh=parseInt(h); return `${hh%12||12}:${m} ${hh<12?"AM":"PM"}`; }
-function extractNumber(text, regex) { const m = text.match(regex); return m ? parseFloat(m[1]) : null; }
