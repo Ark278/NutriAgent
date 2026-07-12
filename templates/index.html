@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriBot — AI Nutrition Agent | IBM Watsonx.ai</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<!-- ════════════════════ NAVBAR ════════════════════ -->
+<nav class="navbar navbar-expand-lg sticky-top" id="mainNav">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <div class="brand-icon">
+        <i class="bi bi-heart-pulse-fill"></i>
+      </div>
+      <div>
+        <span class="brand-name">NutriBot</span>
+        <span class="brand-sub d-none d-sm-inline">AI Nutrition Agent</span>
+      </div>
+    </a>
+
+    <div class="d-flex align-items-center gap-2 ms-auto">
+      <button class="btn btn-sm btn-ghost" id="darkModeToggle" title="Toggle dark mode">
+        <i class="bi bi-moon-stars-fill" id="darkIcon"></i>
+      </button>
+      <button class="btn btn-sm btn-profile" data-bs-toggle="modal" data-bs-target="#profileModal">
+        <i class="bi bi-person-circle me-1"></i>
+        <span id="navProfileName">My Profile</span>
+      </button>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+        <i class="bi bi-list fs-4"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════════════ MOBILE OFFCANVAS NAV ════════════════════ -->
+<div class="offcanvas offcanvas-end" id="mobileMenu">
+  <div class="offcanvas-header">
+    <h6 class="offcanvas-title">Navigation</h6>
+    <button class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div class="nav flex-column gap-2">
+      <button class="nav-link-btn active" onclick="showTab('chat')"><i class="bi bi-chat-dots-fill me-2"></i>Chat</button>
+      <button class="nav-link-btn" onclick="showTab('dashboard')"><i class="bi bi-grid-fill me-2"></i>Dashboard</button>
+      <button class="nav-link-btn" onclick="showTab('tracker')"><i class="bi bi-journal-check me-2"></i>Meal Tracker</button>
+      <button class="nav-link-btn" onclick="showTab('planner')"><i class="bi bi-calendar2-week-fill me-2"></i>Meal Planner</button>
+      <button class="nav-link-btn" onclick="showTab('bmi')"><i class="bi bi-calculator-fill me-2"></i>BMI Calculator</button>
+      <button class="nav-link-btn" onclick="showTab('family')"><i class="bi bi-people-fill me-2"></i>Family Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ HERO BANNER ════════════════════ -->
+<div class="hero-banner" id="heroBanner">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center gy-3">
+      <div class="col-md-7">
+        <div class="hero-badge mb-2"><i class="bi bi-stars me-1"></i> Powered by IBM Granite AI</div>
+        <h1 class="hero-title">Your Personal<br><span class="hero-accent">AI Nutrition</span> Coach</h1>
+        <p class="hero-sub">Expert Indian nutrition advice, personalized meal plans, calorie tracking, and family diet recommendations — all powered by IBM Watsonx.ai Granite models.</p>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button class="btn btn-primary-custom" onclick="showTab('chat')"><i class="bi bi-chat-dots-fill me-2"></i>Start Chatting</button>
+          <button class="btn btn-outline-custom" onclick="showTab('planner')"><i class="bi bi-calendar2-week me-2"></i>Generate Meal Plan</button>
+        </div>
+      </div>
+      <div class="col-md-5 d-none d-md-flex justify-content-center">
+        <div class="hero-stats-grid">
+          <div class="hero-stat"><span class="stat-num">500+</span><span class="stat-label">Indian Recipes</span></div>
+          <div class="hero-stat"><span class="stat-num">24/7</span><span class="stat-label">AI Support</span></div>
+          <div class="hero-stat"><span class="stat-num">100%</span><span class="stat-label">Personalized</span></div>
+          <div class="hero-stat"><span class="stat-num">Free</span><span class="stat-label">Family Plans</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ TAB NAVIGATION ════════════════════ -->
+<div class="tab-nav-wrapper sticky-top" id="tabNav">
+  <div class="container-fluid px-4">
+    <div class="tab-nav-inner">
+      <button class="tab-btn active" id="tab-chat" onclick="showTab('chat')">
+        <i class="bi bi-chat-dots-fill"></i><span>Chat</span>
+      </button>
+      <button class="tab-btn" id="tab-dashboard" onclick="showTab('dashboard')">
+        <i class="bi bi-grid-fill"></i><span>Dashboard</span>
+      </button>
+      <button class="tab-btn" id="tab-tracker" onclick="showTab('tracker')">
+        <i class="bi bi-journal-check"></i><span>Tracker</span>
+      </button>
+      <button class="tab-btn" id="tab-planner" onclick="showTab('planner')">
+        <i class="bi bi-calendar2-week-fill"></i><span>Meal Plan</span>
+      </button>
+      <button class="tab-btn" id="tab-bmi" onclick="showTab('bmi')">
+        <i class="bi bi-calculator-fill"></i><span>BMI</span>
+      </button>
+      <button class="tab-btn" id="tab-family" onclick="showTab('family')">
+        <i class="bi bi-people-fill"></i><span>Family</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ MAIN CONTENT ════════════════════ -->
+<main class="main-content container-fluid px-4 py-4">
+
+  <!-- ── CHAT TAB ─────────────────────────────────────── -->
+  <div id="tab-content-chat" class="tab-content-panel active">
+    <div class="row g-4">
+      <!-- Chat Window -->
+      <div class="col-lg-8">
+        <div class="card-custom chat-card">
+          <div class="card-header-custom">
+            <div class="d-flex align-items-center gap-3">
+              <div class="avatar-bot"><i class="bi bi-robot"></i></div>
+              <div>
+                <div class="fw-600">NutriBot</div>
+                <div class="status-dot-wrap"><span class="status-dot"></span><small>Online — IBM Granite AI</small></div>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="clearChat()" title="Clear chat">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+
+          <div class="chat-messages" id="chatMessages">
+            <!-- Welcome message -->
+            <div class="message bot-message">
+              <div class="message-avatar"><i class="bi bi-robot"></i></div>
+              <div class="message-bubble">
+                <p>Namaste! 🙏 I'm <strong>NutriBot</strong>, your AI-powered nutrition coach powered by IBM Granite.</p>
+                <p>I can help you with:</p>
+                <ul class="mb-0">
+                  <li>🥗 Personalized Indian meal plans</li>
+                  <li>📊 Calorie & macro analysis</li>
+                  <li>🏋️ Weight management strategies</li>
+                  <li>👨‍👩‍👧 Family nutrition recommendations</li>
+                  <li>🌿 Ayurvedic & superfood tips</li>
+                </ul>
+                <p class="mt-2 mb-0">Set up your <strong>profile</strong> first for personalized advice, or just ask me anything!</p>
+                <span class="message-time">Welcome</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick prompts -->
+          <div class="quick-prompts px-3 py-2">
+            <div class="d-flex flex-wrap gap-2">
+              <button class="quick-chip" onclick="sendQuick('Create a 1200 calorie Indian vegetarian meal plan for weight loss')">🥗 Weight loss meal plan</button>
+              <button class="quick-chip" onclick="sendQuick('What are the best Indian superfoods for boosting immunity?')">🌿 Indian superfoods</button>
+              <button class="quick-chip" onclick="sendQuick('How many calories are in a typical Indian thali?')">🍽️ Thali calories</button>
+              <button class="quick-chip" onclick="sendQuick('Suggest high-protein vegetarian breakfast options')">💪 High-protein breakfast</button>
+            </div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="chat-input-area">
+            <div class="d-flex align-items-end gap-2">
+              <textarea class="chat-input" id="chatInput" placeholder="Ask NutriBot anything about nutrition, meals, diet plans..." rows="1" onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+              <button class="btn btn-send" id="sendBtn" onclick="sendMessage()">
+                <i class="bi bi-send-fill"></i>
+              </button>
+            </div>
+            <div class="chat-footer-note"><i class="bi bi-shield-check me-1"></i>AI advice is for general wellness only. Consult a dietitian for medical conditions.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Sidebar -->
+      <div class="col-lg-4">
+        <div class="card-custom mb-4">
+          <div class="card-header-custom"><span><i class="bi bi-person-fill me-2"></i>My Profile</span></div>
+          <div class="card-body-custom p-3">
+            <div id="profileSummary" class="profile-summary">
+              <p class="text-muted text-center py-2">No profile set. <a href="#" onclick="openProfileModal()">Set up profile</a> for personalized advice.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-custom mb-4">
+          <div class="card-header-custom"><span><i class="bi bi-lightbulb-fill me-2"></i>Daily Tip</span></div>
+          <div class="card-body-custom p-3">
+            <div id="dailyTip" class="tip-card">
+              <div class="tip-loading"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span class="ms-2">Loading tip...</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-bar-chart-fill me-2"></i>Quick Stats</span></div>
+          <div class="card-body-custom p-3">
+            <div class="quick-stat-item"><span>Today's Calories</span><span id="qs-calories" class="stat-val">— kcal</span></div>
+            <div class="quick-stat-item"><span>Protein</span><span id="qs-protein" class="stat-val">— g</span></div>
+            <div class="quick-stat-item"><span>Carbs</span><span id="qs-carbs" class="stat-val">— g</span></div>
+            <div class="quick-stat-item"><span>Fat</span><span id="qs-fat" class="stat-val">— g</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD TAB ─────────────────────────────────── -->
+  <div id="tab-content-dashboard" class="tab-content-panel">
+    <div class="section-header">
+      <h2 class="section-title"><i class="bi bi-grid-fill me-2"></i>Nutrition Dashboard</h2>
+      <p class="section-sub">Your daily nutrition overview and insights</p>
+    </div>
+    <div class="row g-4">
+      <!-- Calorie Ring -->
+      <div class="col-sm-6 col-lg-3">
+        <div class="card-custom metric-card">
+          <div class="metric-icon bg-success-soft"><i class="bi bi-fire text-success"></i></div>
+          <div class="metric-value" id="dash-calories">0</div>
+          <div class="metric-label">Calories Today</div>
+          <div class="metric-sub" id="dash-calorie-goal">Goal: — kcal</div>
+          <div class="progress mt-2" style="height:6px">
+            <div class="progress-bar bg-success" id="dash-calorie-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card-custom metric-card">
+          <div class="metric-icon bg-primary-soft"><i class="bi bi-egg-fried text-primary"></i></div>
+          <div class="metric-value" id="dash-protein">0g</div>
+          <div class="metric-label">Protein</div>
+          <div class="metric-sub" id="dash-protein-goal">Goal: — g</div>
+          <div class="progress mt-2" style="height:6px">
+            <div class="progress-bar bg-primary" id="dash-protein-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card-custom metric-card">
+          <div class="metric-icon bg-warning-soft"><i class="bi bi-basket-fill text-warning"></i></div>
+          <div class="metric-value" id="dash-carbs">0g</div>
+          <div class="metric-label">Carbohydrates</div>
+          <div class="metric-sub" id="dash-carbs-goal">Goal: — g</div>
+          <div class="progress mt-2" style="height:6px">
+            <div class="progress-bar bg-warning" id="dash-carbs-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="card-custom metric-card">
+          <div class="metric-icon bg-danger-soft"><i class="bi bi-droplet-fill text-danger"></i></div>
+          <div class="metric-value" id="dash-fat">0g</div>
+          <div class="metric-label">Fat</div>
+          <div class="metric-sub" id="dash-fat-goal">Goal: — g</div>
+          <div class="progress mt-2" style="height:6px">
+            <div class="progress-bar bg-danger" id="dash-fat-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Macro Chart -->
+      <div class="col-lg-5">
+        <div class="card-custom h-100">
+          <div class="card-header-custom"><span><i class="bi bi-pie-chart-fill me-2"></i>Macro Breakdown</span></div>
+          <div class="card-body-custom p-3 d-flex align-items-center justify-content-center">
+            <div class="macro-donut-wrap">
+              <svg viewBox="0 0 200 200" class="macro-donut" id="macroPieChart">
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#e5e7eb" stroke-width="30"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#3b82f6" stroke-width="30"
+                  stroke-dasharray="0 440" id="donut-protein" stroke-dashoffset="0"
+                  transform="rotate(-90 100 100)"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#f59e0b" stroke-width="30"
+                  stroke-dasharray="0 440" id="donut-carbs" stroke-dashoffset="0"
+                  transform="rotate(-90 100 100)"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#ef4444" stroke-width="30"
+                  stroke-dasharray="0 440" id="donut-fat" stroke-dashoffset="0"
+                  transform="rotate(-90 100 100)"/>
+                <text x="100" y="97" text-anchor="middle" class="donut-center-num" id="donut-kcal">0</text>
+                <text x="100" y="113" text-anchor="middle" class="donut-center-label">kcal</text>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item"><span class="dot bg-primary"></span>Protein</div>
+                <div class="legend-item"><span class="dot bg-warning"></span>Carbs</div>
+                <div class="legend-item"><span class="dot bg-danger"></span>Fat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Log -->
+      <div class="col-lg-7">
+        <div class="card-custom h-100">
+          <div class="card-header-custom">
+            <span><i class="bi bi-list-check me-2"></i>Today's Meals</span>
+            <button class="btn btn-sm btn-ghost" onclick="showTab('tracker')">View All</button>
+          </div>
+          <div class="card-body-custom p-0">
+            <div id="dash-meal-list" class="meal-list-compact">
+              <p class="text-muted text-center py-4">No meals logged today.<br>Go to <a href="#" onclick="showTab('tracker')">Meal Tracker</a> to add meals.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Water Tracker -->
+      <div class="col-sm-6 col-lg-4">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-droplet-half me-2"></i>Water Intake</span></div>
+          <div class="card-body-custom p-3">
+            <div class="water-tracker">
+              <div class="water-glasses" id="waterGlasses"></div>
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <span id="waterCount" class="water-count">0 / 8 glasses</span>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-primary" onclick="addWater()"><i class="bi bi-plus"></i></button>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="removeWater()"><i class="bi bi-dash"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fiber Tracker -->
+      <div class="col-sm-6 col-lg-4">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-leaf-fill me-2"></i>Fiber Intake</span></div>
+          <div class="card-body-custom p-3">
+            <div class="text-center">
+              <div class="fiber-gauge-wrap">
+                <div class="fiber-value" id="fiber-val">0g</div>
+                <div class="fiber-goal">Goal: 25–30g</div>
+              </div>
+              <div class="progress mt-2" style="height:10px;border-radius:10px">
+                <div class="progress-bar bg-success" id="fiber-bar" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Analyze -->
+      <div class="col-lg-4">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-search me-2"></i>Analyze a Meal</span></div>
+          <div class="card-body-custom p-3">
+            <textarea class="form-control" id="analyzeMealInput" rows="3" placeholder="Describe a meal, e.g. '2 rotis with dal and sabzi'"></textarea>
+            <button class="btn btn-primary-custom w-100 mt-2" onclick="analyzeMeal()">
+              <span id="analyzeBtn-text"><i class="bi bi-magic me-2"></i>Analyze</span>
+              <span id="analyzeBtn-spinner" class="d-none"><div class="spinner-border spinner-border-sm"></div> Analyzing...</span>
+            </button>
+            <div id="analyzeResult" class="result-box mt-3 d-none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MEAL TRACKER TAB ──────────────────────────────── -->
+  <div id="tab-content-tracker" class="tab-content-panel">
+    <div class="section-header">
+      <h2 class="section-title"><i class="bi bi-journal-check me-2"></i>Meal Tracker</h2>
+      <p class="section-sub">Track your daily food intake and monitor macros against your plan</p>
+    </div>
+    <div class="row g-4">
+      <!-- Log Meal Form -->
+      <div class="col-lg-4">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-plus-circle-fill me-2"></i>Log a Meal</span></div>
+          <div class="card-body-custom p-3">
+            <div class="mb-3">
+              <label class="form-label">Meal Name *</label>
+              <input type="text" class="form-control" id="track-meal" placeholder="e.g. Dal Tadka with 2 Rotis"/>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Calories *</label>
+                <input type="number" class="form-control" id="track-calories" placeholder="kcal" min="0"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Protein (g)</label>
+                <input type="number" class="form-control" id="track-protein" placeholder="g" min="0"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Carbs (g)</label>
+                <input type="number" class="form-control" id="track-carbs" placeholder="g" min="0"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Fat (g)</label>
+                <input type="number" class="form-control" id="track-fat" placeholder="g" min="0"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Fiber (g)</label>
+                <input type="number" class="form-control" id="track-fiber" placeholder="g" min="0"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Time</label>
+                <input type="time" class="form-control" id="track-time"/>
+              </div>
+            </div>
+            <button class="btn btn-primary-custom w-100 mt-3" onclick="logMeal()">
+              <i class="bi bi-plus-lg me-2"></i>Add to Tracker
+            </button>
+            <button class="btn btn-outline-secondary w-100 mt-2" onclick="openAnalyzeAndLog()">
+              <i class="bi bi-magic me-2"></i>AI Auto-Fill
+            </button>
+          </div>
+        </div>
+
+        <!-- Daily Targets Card -->
+        <div class="card-custom mt-4">
+          <div class="card-header-custom">
+            <span><i class="bi bi-bullseye me-2"></i>Daily Targets</span>
+            <button class="btn btn-sm btn-ghost" onclick="openProfileModal()"><i class="bi bi-pencil"></i></button>
+          </div>
+          <div class="card-body-custom p-3" id="daily-targets-panel">
+            <p class="text-muted text-center small">Set your profile to see targets</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Log -->
+      <div class="col-lg-8">
+        <div class="card-custom">
+          <div class="card-header-custom">
+            <span><i class="bi bi-calendar-check me-2"></i>Today's Log — <span id="todayDate"></span></span>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearTodayLog()"><i class="bi bi-trash3 me-1"></i>Clear</button>
+          </div>
+          <div class="card-body-custom p-0">
+            <div id="todayMealList" class="meal-log-list">
+              <div class="empty-state"><i class="bi bi-journal-plus"></i><p>No meals logged today</p><small>Start by logging your breakfast!</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Macro Progress Bars -->
+        <div class="card-custom mt-4">
+          <div class="card-header-custom"><span><i class="bi bi-bar-chart-steps me-2"></i>Macro Progress</span></div>
+          <div class="card-body-custom p-3">
+            <div class="macro-progress-item mb-3">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fw-500"><i class="bi bi-fire text-success me-1"></i>Calories</span>
+                <span id="prog-cal-text">0 / — kcal</span>
+              </div>
+              <div class="progress" style="height:12px;border-radius:6px">
+                <div class="progress-bar bg-success" id="prog-cal-bar" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="macro-progress-item mb-3">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fw-500"><i class="bi bi-egg-fried text-primary me-1"></i>Protein</span>
+                <span id="prog-pro-text">0 / — g</span>
+              </div>
+              <div class="progress" style="height:12px;border-radius:6px">
+                <div class="progress-bar bg-primary" id="prog-pro-bar" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="macro-progress-item mb-3">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fw-500"><i class="bi bi-basket-fill text-warning me-1"></i>Carbs</span>
+                <span id="prog-carb-text">0 / — g</span>
+              </div>
+              <div class="progress" style="height:12px;border-radius:6px">
+                <div class="progress-bar bg-warning" id="prog-carb-bar" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="macro-progress-item">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fw-500"><i class="bi bi-droplet-fill text-danger me-1"></i>Fat</span>
+                <span id="prog-fat-text">0 / — g</span>
+              </div>
+              <div class="progress" style="height:12px;border-radius:6px">
+                <div class="progress-bar bg-danger" id="prog-fat-bar" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Analyze & Log Modal -->
+    <div class="modal fade" id="analyzeLogModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content card-custom border-0">
+          <div class="modal-header card-header-custom">
+            <h5 class="modal-title"><i class="bi bi-magic me-2"></i>AI Meal Analyzer</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label">Describe your meal</label>
+              <textarea class="form-control" id="aiAnalyzeInput" rows="3" placeholder="e.g. 2 rotis with dal makhani and baingan bharta"></textarea>
+            </div>
+            <button class="btn btn-primary-custom" onclick="aiAnalyzeForLog()">
+              <span id="aiAnalyzeBtn-text"><i class="bi bi-magic me-2"></i>Analyze with AI</span>
+              <span id="aiAnalyzeBtn-spinner" class="d-none"><div class="spinner-border spinner-border-sm"></div> Analyzing...</span>
+            </button>
+            <div id="aiAnalyzeResult" class="result-box mt-3 d-none"></div>
+            <div id="aiAnalyzeLogForm" class="mt-3 d-none">
+              <hr/>
+              <h6>Parsed Values (edit if needed):</h6>
+              <div class="row g-2">
+                <div class="col-6"><label>Meal Name</label><input type="text" class="form-control" id="ai-meal-name"/></div>
+                <div class="col-6"><label>Calories</label><input type="number" class="form-control" id="ai-calories"/></div>
+                <div class="col-4"><label>Protein (g)</label><input type="number" class="form-control" id="ai-protein"/></div>
+                <div class="col-4"><label>Carbs (g)</label><input type="number" class="form-control" id="ai-carbs"/></div>
+                <div class="col-4"><label>Fat (g)</label><input type="number" class="form-control" id="ai-fat"/></div>
+              </div>
+              <button class="btn btn-success w-100 mt-3" onclick="logFromAI()"><i class="bi bi-check-lg me-2"></i>Add to Tracker</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MEAL PLANNER TAB ──────────────────────────────── -->
+  <div id="tab-content-planner" class="tab-content-panel">
+    <div class="section-header">
+      <h2 class="section-title"><i class="bi bi-calendar2-week-fill me-2"></i>AI Meal Planner</h2>
+      <p class="section-sub">Generate personalized meal plans powered by IBM Granite</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-sliders me-2"></i>Plan Settings</span></div>
+          <div class="card-body-custom p-3">
+            <div class="mb-3">
+              <label class="form-label">Daily Calorie Target</label>
+              <input type="number" class="form-control" id="plan-calories" value="2000" min="1200" max="4000"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Diet Type</label>
+              <select class="form-select" id="plan-diet">
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+                <option value="eggetarian">Eggetarian</option>
+                <option value="non-vegetarian">Non-Vegetarian</option>
+                <option value="jain">Jain</option>
+                <option value="sattvic">Sattvic / Ayurvedic</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Cuisine Preference</label>
+              <select class="form-select" id="plan-cuisine">
+                <option value="Indian">Indian (Mixed)</option>
+                <option value="North Indian">North Indian</option>
+                <option value="South Indian">South Indian</option>
+                <option value="Gujarati">Gujarati</option>
+                <option value="Bengali">Bengali</option>
+                <option value="Punjabi">Punjabi</option>
+                <option value="Mediterranean">Mediterranean</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Goal</label>
+              <select class="form-select" id="plan-goal">
+                <option value="maintain weight">Maintain Weight</option>
+                <option value="lose weight">Lose Weight</option>
+                <option value="gain muscle">Gain Muscle</option>
+                <option value="improve energy">Improve Energy</option>
+                <option value="manage diabetes">Manage Diabetes</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Number of Days</label>
+              <select class="form-select" id="plan-days">
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7" selected>7 Days</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Allergies / Restrictions</label>
+              <input type="text" class="form-control" id="plan-allergies" placeholder="e.g. nuts, gluten, dairy"/>
+            </div>
+            <button class="btn btn-primary-custom w-100" onclick="generateMealPlan()" id="genPlanBtn">
+              <span id="planBtn-text"><i class="bi bi-magic me-2"></i>Generate Plan with AI</span>
+              <span id="planBtn-spinner" class="d-none"><div class="spinner-border spinner-border-sm"></div> Generating...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card-custom" id="mealPlanResult">
+          <div class="card-header-custom">
+            <span><i class="bi bi-calendar2-check me-2"></i>Generated Meal Plan</span>
+            <button class="btn btn-sm btn-ghost" id="copyPlanBtn" onclick="copyPlan()" style="display:none"><i class="bi bi-clipboard me-1"></i>Copy</button>
+          </div>
+          <div class="card-body-custom p-4" id="mealPlanContent">
+            <div class="empty-state">
+              <i class="bi bi-calendar2-plus"></i>
+              <p>Your AI-generated meal plan will appear here</p>
+              <small>Configure your preferences and click "Generate Plan"</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BMI CALCULATOR TAB ────────────────────────────── -->
+  <div id="tab-content-bmi" class="tab-content-panel">
+    <div class="section-header">
+      <h2 class="section-title"><i class="bi bi-calculator-fill me-2"></i>BMI & Nutrition Calculator</h2>
+      <p class="section-sub">Calculate your BMI, BMR, TDEE and personalized macro targets</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card-custom">
+          <div class="card-header-custom"><span><i class="bi bi-person-fill me-2"></i>Your Measurements</span></div>
+          <div class="card-body-custom p-3">
+            <div class="row g-3">
+              <div class="col-6">
+                <label class="form-label">Weight (kg) *</label>
+                <input type="number" class="form-control" id="bmi-weight" placeholder="e.g. 65" min="20" max="300"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Height (cm) *</label>
+                <input type="number" class="form-control" id="bmi-height" placeholder="e.g. 165" min="100" max="250"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Age *</label>
+                <input type="number" class="form-control" id="bmi-age" placeholder="e.g. 28" min="10" max="100"/>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Gender *</label>
+                <select class="form-select" id="bmi-gender">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Activity Level</label>
+                <select class="form-select" id="bmi-activity">
+                  <option value="sedentary">Sedentary (desk job, no exercise)</option>
+                  <option value="light">Light (1-3 days/week exercise)</option>
+                  <option value="moderate" selected>Moderate (3-5 days/week)</option>
+                  <option value="active">Active (6-7 days/week)</option>
+                  <option value="very_active">Very Active (athlete)</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Goal</label>
+                <select class="form-select" id="bmi-goal">
+                  <option value="maintain">Maintain</option>
+                  <option value="lose">Lose Weight</option>
+                  <option value="gain">Gain Weight</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Macro Split</label>
+                <select class="form-select" id="bmi-split">
+                  <option value="balanced">Balanced (50/25/25)</option>
+                  <option value="high_protein">High Protein (30/40/30)</option>
+                  <option value="low_carb">Low Carb (25/35/40)</option>
+                  <option value="keto">Keto (5/30/65)</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <button class="btn btn-primary-custom w-100" onclick="calculateBMI()">
+                  <i class="bi bi-calculator me-2"></i>Calculate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7" id="bmiResults" style="display:none">
+        <div class="row g-3">
+          <!-- BMI Card -->
+          <div class="col-sm-6">
+            <div class="card-custom metric-card text-center">
+              <div class="bmi-circle" id="bmiCircle">
+                <span id="bmiValue">--</span>
+              </div>
+              <div class="metric-label mt-2">BMI</div>
+              <div class="badge mt-1" id="bmiCategory">--</div>
+            </div>
+          </div>
+          <!-- BMR Card -->
+          <div class="col-sm-6">
+            <div class="card-custom metric-card">
+              <div class="metric-icon bg-primary-soft"><i class="bi bi-heart-pulse-fill text-primary"></i></div>
+              <div class="metric-value" id="bmrValue">--</div>
+              <div class="metric-label">BMR (kcal/day)</div>
+              <div class="metric-sub">Basal Metabolic Rate</div>
+            </div>
+          </div>
+          <!-- TDEE Card -->
+          <div class="col-sm-6">
+            <div class="card-custom metric-card">
+              <div class="metric-icon bg-warning-soft"><i class="bi bi-lightning-charge-fill text-warning"></i></div>
+              <div class="metric-value" id="tdeeValue">--</div>
+              <div class="metric-label">TDEE (kcal/day)</div>
+              <div class="metric-sub">Total Daily Energy</div>
+            </div>
+          </div>
+          <!-- Target Calories -->
+          <div class="col-sm-6">
+            <div class="card-custom metric-card">
+              <div class="metric-icon bg-success-soft"><i class="bi bi-bullseye text-success"></i></div>
+              <div class="metric-value" id="targetCalories">--</div>
+              <div class="metric-label">Target (kcal/day)</div>
+              <div class="metric-sub">Based on your goal</div>
+            </div>
+          </div>
+          <!-- Macro Targets -->
+          <div class="col-12">
+            <div class="card-custom">
+              <div class="card-header-custom"><span><i class="bi bi-bar-chart-fill me-2"></i>Daily Macro Targets</span></div>
+              <div class="card-body-custom p-3">
+                <div class="row g-3" id="macroTargets"></div>
+              </div>
+            </div>
+          </div>
+          <!-- BMI Scale -->
+          <div class="col-12">
+            <div class="card-custom">
+              <div class="card-header-custom"><span><i class="bi bi-rulers me-2"></i>BMI Scale</span></div>
+              <div class="card-body-custom p-3">
+                <div class="bmi-scale">
+                  <div class="bmi-scale-bar"></div>
+                  <div class="bmi-scale-labels">
+                    <span>Underweight<br>&lt;18.5</span>
+                    <span>Normal<br>18.5–24.9</span>
+                    <span>Overweight<br>25–29.9</span>
+                    <span>Obese<br>&gt;30</span>
+                  </div>
+                  <div class="bmi-scale-pointer" id="bmiPointer" style="left:0%">▲</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BMI placeholder -->
+      <div class="col-lg-7" id="bmiPlaceholder">
+        <div class="card-custom h-100">
+          <div class="card-body-custom p-4 d-flex align-items-center justify-content-center">
+            <div class="empty-state">
+              <i class="bi bi-calculator" style="font-size:4rem;color:var(--accent)"></i>
+              <p>Enter your measurements and click Calculate</p>
+              <small>We'll compute your BMI, BMR, TDEE, and personalized macro targets</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FAMILY PLAN TAB ───────────────────────────────── -->
+  <div id="tab-content-family" class="tab-content-panel">
+    <div class="section-header">
+      <h2 class="section-title"><i class="bi bi-people-fill me-2"></i>Family Nutrition Planner</h2>
+      <p class="section-sub">Create personalized nutrition plans for every family member</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card-custom">
+          <div class="card-header-custom">
+            <span><i class="bi bi-person-plus-fill me-2"></i>Family Members</span>
+            <button class="btn btn-sm btn-primary-custom" onclick="addFamilyMember()"><i class="bi bi-plus-lg"></i></button>
+          </div>
+          <div class="card-body-custom p-3">
+            <div id="familyMembersList">
+              <!-- Members added dynamically -->
+            </div>
+            <button class="btn btn-outline-secondary w-100 mt-2" onclick="addFamilyMember()">
+              <i class="bi bi-plus-circle me-2"></i>Add Family Member
+            </button>
+            <hr/>
+            <div class="mb-3">
+              <label class="form-label">Family Cuisine Preference</label>
+              <select class="form-select" id="family-cuisine">
+                <option value="Indian">Indian (Mixed)</option>
+                <option value="North Indian">North Indian</option>
+                <option value="South Indian">South Indian</option>
+                <option value="Gujarati">Gujarati</option>
+              </select>
+            </div>
+            <button class="btn btn-primary-custom w-100" onclick="generateFamilyPlan()" id="familyPlanBtn">
+              <span id="familyBtn-text"><i class="bi bi-magic me-2"></i>Generate Family Plan</span>
+              <span id="familyBtn-spinner" class="d-none"><div class="spinner-border spinner-border-sm"></div> Generating...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card-custom">
+          <div class="card-header-custom">
+            <span><i class="bi bi-people-fill me-2"></i>Family Nutrition Plan</span>
+            <button class="btn btn-sm btn-ghost" id="copyFamilyBtn" onclick="copyFamilyPlan()" style="display:none"><i class="bi bi-clipboard"></i></button>
+          </div>
+          <div class="card-body-custom p-4" id="familyPlanContent">
+            <div class="empty-state">
+              <i class="bi bi-people"></i>
+              <p>Add family members and generate your personalized family plan</p>
+              <small>Supports children, teens, adults, and seniors</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════════════════════ PROFILE MODAL ════════════════════ -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content card-custom border-0">
+      <div class="modal-header card-header-custom">
+        <h5 class="modal-title"><i class="bi bi-person-circle me-2"></i>My Nutrition Profile</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" id="p-name" placeholder="Your name"/>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Age</label>
+            <input type="number" class="form-control" id="p-age" placeholder="Years" min="10" max="100"/>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Gender</label>
+            <select class="form-select" id="p-gender">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other / Prefer not to say</option>
+            </select>
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" class="form-control" id="p-weight" placeholder="kg"/>
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label">Height (cm)</label>
+            <input type="number" class="form-control" id="p-height" placeholder="cm"/>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Fitness Goal</label>
+            <select class="form-select" id="p-goal">
+              <option value="maintain weight">Maintain Weight</option>
+              <option value="lose weight">Lose Weight</option>
+              <option value="gain muscle">Gain Muscle</option>
+              <option value="improve energy">Improve Energy</option>
+              <option value="manage diabetes">Manage Diabetes</option>
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Diet Type</label>
+            <select class="form-select" id="p-diet">
+              <option value="vegetarian">Vegetarian</option>
+              <option value="vegan">Vegan</option>
+              <option value="eggetarian">Eggetarian</option>
+              <option value="non-vegetarian">Non-Vegetarian</option>
+              <option value="jain">Jain</option>
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Activity Level</label>
+            <select class="form-select" id="p-activity">
+              <option value="sedentary">Sedentary</option>
+              <option value="light">Light Activity</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="active">Very Active</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Allergies / Food Restrictions</label>
+            <input type="text" class="form-control" id="p-allergies" placeholder="e.g. nuts, gluten, dairy, shellfish"/>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Target Daily Calories</label>
+            <input type="number" class="form-control" id="p-calories" placeholder="e.g. 1800 (auto-calculated)"/>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Macro Split Preference</label>
+            <select class="form-select" id="p-split">
+              <option value="balanced">Balanced (50/25/25)</option>
+              <option value="high_protein">High Protein (30/40/30)</option>
+              <option value="low_carb">Low Carb (25/35/40)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary-custom" onclick="saveProfile()"><i class="bi bi-check-lg me-2"></i>Save Profile</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ TOAST CONTAINER ════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="appToast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg">Message</div>
+      <button class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ SCRIPTS ════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
