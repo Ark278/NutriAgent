@@ -64,7 +64,7 @@ Fill in these values in `.env`:
 ```env
 IBM_API_KEY=your_actual_api_key
 IBM_PROJECT_ID=your_actual_project_id
-IBM_URL=https://us-south.ml.cloud.ibm.com
+IBM_URL=https://au-syd.ml.cloud.ibm.com
 MODEL_ID=ibm/granite-3-3-8b-instruct
 FLASK_SECRET_KEY=your-random-secret-key
 ```
