@@ -50,6 +50,11 @@ CALORIE_LOGIC     : [
     "High-protein split: 40% protein, 30% carbs, 30% fat",
 ]
 
+FAMILY_SUPPORT    : [
+    "Can create separate profiles for each family member",
+    "Adapts advice for children (2-12), teens (13-17), adults, seniors (60+)",
+    "Suggests family-friendly meals that meet different nutritional needs",
+]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 END OF AGENT_INSTRUCTIONS
 """
@@ -68,7 +73,10 @@ from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 # ── Load environment variables ──────────────────────────────────────────────
 load_dotenv()
 
-app = Flask(__name__)
+base_dir = os.path.abspath(os.path.dirname(__file__))
+template_dir = os.path.join(base_dir, 'templates')
+
+app = Flask(__name__, template_folder=template_dir)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "nutrition-agent-secret-2024")
 CORS(app)
 
@@ -124,7 +132,8 @@ WHAT YOU DO:
 2. Calculate calorie needs using Mifflin-St Jeor BMR equation
 3. Analyze meals and provide calorie + macro breakdowns (protein/carb/fat/fiber)
 4. Suggest healthy Indian and international meal options
-5. Recommend Indian superfoods: turmeric, moringa, amla, ashwagandha
+5. Provide family diet recommendations for different age groups
+6. Recommend Indian superfoods: turmeric, moringa, amla, ashwagandha
 
 RESPONSE FORMAT:
 - Use bullet points and structured sections
@@ -183,44 +192,21 @@ def calculate_bmi(weight_kg, height_cm):
         color = "danger"
     return round(bmi, 1), category, color
 
-def calculate_macros(calories, split="balanced", weight_kg=None, goal=None):
-    # Protein: evidence-based g/kg body weight
-    protein_per_kg = {
-        "gain": 2.0, "gain muscle": 2.0, "build muscle": 2.0,
-        "lose": 1.8, "lose weight": 1.8,
-        "gain weight": 1.5,
-    }.get((goal or "").lower(), 1.2)
-
-    if weight_kg:
-        protein_g = round(weight_kg * protein_per_kg)
-    else:
-        # Fallback: percentage-based when no weight available
-        pct = {"high_protein": 0.35, "keto": 0.30, "low_carb": 0.30}.get(split, 0.25)
-        protein_g = round((calories * pct) / 4)
-
-    # Fat: 25% of calories (keto/low_carb adjusted)
-    fat_pct = {"keto": 0.65, "low_carb": 0.40}.get(split, 0.25)
-    fat_g = round((calories * fat_pct) / 9)
-
-    # Carbs: fill remaining calories
-    carbs_g = max(0, round((calories - protein_g * 4 - fat_g * 9) / 4))
-
-    # Fiber: 14g per 1000 kcal
-    fiber_g = round((calories / 1000) * 14, 1)
-
-    # Actual percentages
-    protein_pct = round((protein_g * 4 / calories) * 100) if calories else 0
-    fat_pct_val = round((fat_g * 9 / calories) * 100) if calories else 0
-    carbs_pct   = round((carbs_g * 4 / calories) * 100) if calories else 0
-
+def calculate_macros(calories, split="balanced"):
+    splits = {
+        "balanced":    {"carbs": 0.50, "protein": 0.25, "fat": 0.25},
+        "high_protein":{"carbs": 0.30, "protein": 0.40, "fat": 0.30},
+        "keto":        {"carbs": 0.05, "protein": 0.30, "fat": 0.65},
+        "low_carb":    {"carbs": 0.25, "protein": 0.35, "fat": 0.40},
+    }
+    s = splits.get(split, splits["balanced"])
     return {
-        "protein_g":   protein_g,
-        "fat_g":       fat_g,
-        "carbs_g":     carbs_g,
-        "fiber_g":     fiber_g,
-        "protein_pct": protein_pct,
-        "fat_pct":     fat_pct_val,
-        "carbs_pct":   carbs_pct,
+        "carbs_g":   round((calories * s["carbs"]) / 4),
+        "protein_g": round((calories * s["protein"]) / 4),
+        "fat_g":     round((calories * s["fat"]) / 9),
+        "carbs_pct":   int(s["carbs"] * 100),
+        "protein_pct": int(s["protein"] * 100),
+        "fat_pct":     int(s["fat"] * 100),
     }
 
 
@@ -310,7 +296,7 @@ def bmi_calculator():
         else:
             target_calories = tdee
 
-        macros = calculate_macros(target_calories, split, weight_kg=weight, goal=goal)
+        macros = calculate_macros(target_calories, split)
 
         return jsonify({
             "bmi": bmi,
@@ -372,36 +358,68 @@ def analyze_meal():
     if not meal_description:
         return jsonify({"error": "No meal provided"}), 400
 
-    prompt = f"""You are a nutrition analysis API. Return ONLY a JSON object. No markdown. No code fences. No bullet points. No explanations. No ranges. Choose the single most reasonable estimate.
+    prompt = f"""{SYSTEM_PROMPT}
 
-IMPORTANT: Calculate nutrition for the EXACT quantity stated, not a single unit.
+Analyze this meal and provide a detailed nutritional breakdown:
+Meal: {meal_description}
 
-Analyze this meal: {meal_description}
+Provide:
+1. Estimated total calories
+2. Macronutrients: protein (g), carbohydrates (g), fat (g), fiber (g)
+3. Key vitamins and minerals
+4. Health score (1-10) with reasoning
+5. Suggestions to make it healthier
+6. Best time to consume this meal
 
-Return exactly this JSON and nothing else (replace 0 with real values):
-{{"meal":"{meal_description}","calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"analysis":"Brief 1-sentence description of the meal and its main nutritional benefit."}}"""
+Format the response clearly with numbers and be specific."""
 
     try:
         model = get_model()
-        response = model.generate_text(prompt=prompt).strip()
-
-        # Strip ```json ... ``` fences if present
-        response = re.sub(r"```(?:json)?", "", response).strip().rstrip("`").strip()
-
-        # Find the index of the first '{' and decode only the first valid JSON object
-        start = response.index("{")
-        nutrition, _ = json.JSONDecoder().raw_decode(response, start)
-        return jsonify({
-            "meal":     nutrition.get("meal", meal_description),
-            "calories": int(nutrition.get("calories", 0)),
-            "protein":  float(nutrition.get("protein", 0)),
-            "carbs":    float(nutrition.get("carbs", 0)),
-            "fat":      float(nutrition.get("fat", 0)),
-            "fiber":    float(nutrition.get("fiber", 0)),
-            "analysis": nutrition.get("analysis", ""),
-        })
+        analysis = model.generate_text(prompt=prompt)
+        return jsonify({"analysis": analysis.strip()})
     except Exception as e:
-        return jsonify({"error": str(e), "raw": response if 'response' in dir() else ""}), 500
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/family-plan", methods=["POST"])
+def family_plan():
+    """Generate nutrition recommendations for a family."""
+    data    = request.get_json()
+    members = data.get("members", [])
+    cuisine = data.get("cuisine", "Indian")
+
+    if not members:
+        return jsonify({"error": "No family members provided"}), 400
+
+    members_text = "\n".join([
+        f"- {m.get('name', 'Member')}: Age {m.get('age')}, "
+        f"{m.get('gender', 'M')}, {m.get('activity', 'moderate')} activity, "
+        f"Goal: {m.get('goal', 'healthy living')}, Diet: {m.get('diet', 'vegetarian')}"
+        for m in members
+    ])
+
+    prompt = f"""{SYSTEM_PROMPT}
+
+Create a family nutrition plan for:
+{members_text}
+
+Cuisine preference: {cuisine}
+
+For each family member provide:
+1. Daily calorie target
+2. Key nutritional needs based on age group
+3. Recommended foods and portions
+4. Foods to avoid
+
+Then suggest 3 family-friendly meals that work for everyone's needs.
+Be specific about Indian family meal traditions and healthy adaptations."""
+
+    try:
+        model = get_model()
+        plan  = model.generate_text(prompt=prompt)
+        return jsonify({"plan": plan.strip()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/nutrition-tip", methods=["GET"])
@@ -410,17 +428,9 @@ def daily_tip():
     today = date.today().strftime("%B %d")
     prompt = f"""{SYSTEM_PROMPT}
 
-Give one Indian nutrition tip for {today}. Follow this exact format and do not add extra sections:
-
-* [Tip title]: [One sentence tip with approximate calories and macros, e.g. approx. X calories, Xg carbs, Xg protein, Xg fat.]
-[One sentence explanation of the health benefit.]
-💪 [One short motivational sentence!]
-Disclaimer: [One sentence disclaimer about consulting a healthcare professional.]
-
-Rules:
-- Total response must be under 100 words.
-- Include calorie and macro estimates in the first bullet.
-- Do not add ### headings, extra bullets, or any text outside the format above."""
+Give one concise, actionable Indian nutrition tip for {today}.
+Focus on a seasonal food, spice, or healthy eating habit.
+Keep it under 3 sentences. Be specific and practical."""
 
     try:
         model = get_model()
