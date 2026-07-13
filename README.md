@@ -1,3 +1,5 @@
+Vercel Deployment: https://nutri-agent-iota.vercel.app/
+
 # 🥗 NutriBot — AI-Powered Nutrition Agent
 
 **Powered by IBM Watsonx.ai Granite Models** | Flask + Bootstrap 5 | Indian Nutrition Specialist
