@@ -402,6 +402,9 @@ Return EXACTLY this JSON:
                         .replace("```", "")
                         .strip()
             )
+        print("=" * 80)
+        print(response)
+        print("=" * 80)
 
         nutrition = json.loads(response)
 
@@ -417,9 +420,9 @@ Return EXACTLY this JSON:
 
         return jsonify(nutrition)
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         return jsonify({
-            "error": "Model returned invalid JSON",
+            "error": str(e),
             "raw": response
         }), 500
 
