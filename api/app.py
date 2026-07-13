@@ -112,6 +112,27 @@ def get_model():
         params=params,
     )
 
+def get_json_model():
+    """Model optimized for structured JSON output."""
+    params = {
+        GenParams.MAX_NEW_TOKENS: 300,
+        GenParams.MIN_NEW_TOKENS: 20,
+        GenParams.TEMPERATURE: 0,
+        GenParams.TOP_P: 1,
+        GenParams.TOP_K: 1,
+        GenParams.REPETITION_PENALTY: 1.2,
+    }
+
+    return ModelInference(
+        model_id=MODEL_ID,
+        credentials=Credentials(
+            url=IBM_URL,
+            api_key=IBM_API_KEY,
+        ),
+        project_id=IBM_PROJECT_ID,
+        params=params,
+    )
+
 # ── System Prompt (derived from AGENT_INSTRUCTIONS above) ──────────────────
 SYSTEM_PROMPT = """You are NutriBot, an expert AI Nutrition Agent powered by IBM Granite.
 
@@ -360,39 +381,48 @@ def analyze_meal():
         return jsonify({"error": "No meal provided"}), 400
 
     prompt = f"""
-You are an API.
+You are a JSON API.
 
-Your ONLY job is to return valid JSON.
+Your ONLY purpose is to return ONE valid JSON object.
 
-Never write explanations.
-Never write markdown.
-Never write headings.
-Never write code fences.
-Never write any text before or after the JSON.
+Rules:
+- Return exactly ONE JSON object.
+- Stop immediately after the closing }}.
+- Never repeat the JSON.
+- Never explain.
+- Never output markdown.
+- Never output ```json.
+- Never output text before the JSON.
+- Never output text after the JSON.
 
-Analyze this meal:
+Meal:
 
 {meal_description}
 
-Assume one standard serving unless specified.
+Assume one standard serving.
 
-Choose one best estimate.
-
-Return EXACTLY this JSON:
+Return ONLY this JSON object (fill in the numeric values and analysis):
 
 {{
-  "meal": "{meal_description}",
-  "calories": 0,
-  "protein": 0,
-  "carbs": 0,
-  "fat": 0,
-  "fiber": 0,
-  "analysis": ""
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+    "fiber": 0,
+    "analysis": "One short sentence describing the nutritional quality."
 }}
 """
 
     try:
-        model = get_model()
+        print("=" * 80)
+        print("MODEL:", MODEL_ID)
+        print("=" * 80)
+
+        print("=" * 80)
+        print("PROMPT:")
+        print(prompt)
+        print("=" * 80)
+        model = get_json_model()
         response = model.generate_text(prompt=prompt).strip()
 
         # Remove markdown fences if the model adds them
@@ -406,7 +436,18 @@ Return EXACTLY this JSON:
         print(response)
         print("=" * 80)
 
-        nutrition = json.loads(response)
+        decoder = json.JSONDecoder()
+
+        start = response.find("{")
+
+        if start == -1:
+            raise ValueError("No JSON object found")
+
+        nutrition, _ = decoder.raw_decode(response[start:])
+
+        # Always set meal from the original input so special characters in the
+        # description never corrupt the JSON the model returns.
+        nutrition["meal"] = meal_description
 
         # Sanity check: calories should roughly match macros
         estimated = (
