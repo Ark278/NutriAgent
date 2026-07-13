@@ -352,34 +352,79 @@ End with a brief nutrition tip."""
 
 @app.route("/api/analyze-meal", methods=["POST"])
 def analyze_meal():
-    """Analyze a meal description for calories and macros."""
+    """Analyze a meal description and return structured nutrition JSON."""
     data = request.get_json()
-    meal_description = data.get("meal", "")
+    meal_description = data.get("meal", "").strip()
+
     if not meal_description:
         return jsonify({"error": "No meal provided"}), 400
 
-    prompt = f"""{SYSTEM_PROMPT}
+    prompt = f"""
+You are an API.
 
-Analyze this meal and provide a detailed nutritional breakdown:
-Meal: {meal_description}
+Your ONLY job is to return valid JSON.
 
-Provide:
-1. Estimated total calories
-2. Macronutrients: protein (g), carbohydrates (g), fat (g), fiber (g)
-3. Key vitamins and minerals
-4. Health score (1-10) with reasoning
-5. Suggestions to make it healthier
-6. Best time to consume this meal
+Never write explanations.
+Never write markdown.
+Never write headings.
+Never write code fences.
+Never write any text before or after the JSON.
 
-Format the response clearly with numbers and be specific."""
+Analyze this meal:
+
+{meal_description}
+
+Assume one standard serving unless specified.
+
+Choose one best estimate.
+
+Return EXACTLY this JSON:
+
+{{
+  "meal": "{meal_description}",
+  "calories": 0,
+  "protein": 0,
+  "carbs": 0,
+  "fat": 0,
+  "fiber": 0,
+  "analysis": ""
+}}
+"""
 
     try:
         model = get_model()
-        analysis = model.generate_text(prompt=prompt)
-        return jsonify({"analysis": analysis.strip()})
+        response = model.generate_text(prompt=prompt).strip()
+
+        # Remove markdown fences if the model adds them
+        if response.startswith("```"):
+            response = (
+                response.replace("```json", "")
+                        .replace("```", "")
+                        .strip()
+            )
+
+        nutrition = json.loads(response)
+
+        # Sanity check: calories should roughly match macros
+        estimated = (
+            nutrition["protein"] * 4 +
+            nutrition["carbs"] * 4 +
+            nutrition["fat"] * 9
+        )
+
+        if abs(estimated - nutrition["calories"]) > 100:
+            nutrition["calories"] = estimated
+
+        return jsonify(nutrition)
+
+    except json.JSONDecodeError:
+        return jsonify({
+            "error": "Model returned invalid JSON",
+            "raw": response
+        }), 500
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/family-plan", methods=["POST"])
 def family_plan():
